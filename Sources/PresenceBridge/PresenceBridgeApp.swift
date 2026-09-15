@@ -42,9 +42,15 @@ struct ControlPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Presence Bridge").font(.title3.bold())
+                    VStack(alignment: .leading) {
+                        Text("Presence Bridge").font(.title3.bold())
+                        Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development")")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     Spacer()
-                    Text(model.armed ? "ACTIVE" : "OBSERVING").font(.caption).foregroundStyle(.secondary)
+                    Text(model.walkTestRunning ? "DETECTION TEST" :
+                         model.armed ? (model.needsReturnConfirmation ? "WAITING" : "ACTIVE") : "OBSERVING")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 Text(model.needsReturnConfirmation
                      ? (model.armed && model.resumeAfterUnlock ? "Waiting to resume" : "Return needs confirmation")
@@ -53,6 +59,10 @@ struct ControlPanel: View {
                 Text("Idle \(Int(min(model.idleSeconds, 99999)))s · Bluetooth \(model.proximity.rawValue)")
                     .font(.caption.monospacedDigit())
                 Text(model.effectStatus).font(.caption).foregroundStyle(.secondary)
+                if model.walkTestRunning {
+                    Text("Automatic locking is paused during this detection test. Choose Start work to arm it.")
+                        .font(.caption)
+                }
 
                 HStack {
                     Button(model.needsReturnConfirmation ? "I’m back" : "Start work") { model.startWork() }
@@ -105,7 +115,7 @@ struct ControlPanel: View {
                         .font(.caption.monospacedDigit())
                     HStack {
                         Button("Calibrate at desk") { model.calibrateAtDesk() }
-                        Button("Test walking away") { model.startWalkTest() }
+                        Button("Test detection only") { model.startWalkTest() }
                     }
                     HStack {
                         Text("Leave threshold")

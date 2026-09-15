@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## Unreleased — 0.1.1
+
+- Optimized local application build for full-function testing, with a visible version number, distinct waiting/test status, and **Test detection only** labeling to distinguish simulation from real automatic locking.
 
 - Resume an active work session automatically after observing a lock/unlock cycle, waiting for the selected Bluetooth device to be near and readiness to remain stable for two seconds.
 - Add **Resume after unlocking** (on by default). Pause and fresh launches remain inactive. Manual **I'm back** remains available when return detection is unavailable.
