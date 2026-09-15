@@ -46,7 +46,9 @@ struct ControlPanel: View {
                     Spacer()
                     Text(model.armed ? "ACTIVE" : "OBSERVING").font(.caption).foregroundStyle(.secondary)
                 }
-                Text(model.needsReturnConfirmation ? "Return needs confirmation" : model.state.rawValue.capitalized)
+                Text(model.needsReturnConfirmation
+                     ? (model.armed && model.resumeAfterUnlock ? "Waiting to resume" : "Return needs confirmation")
+                     : model.state.rawValue.capitalized)
                     .font(.headline)
                 Text("Idle \(Int(min(model.idleSeconds, 99999)))s · Bluetooth \(model.proximity.rawValue)")
                     .font(.caption.monospacedDigit())
@@ -60,6 +62,7 @@ struct ControlPanel: View {
                 }
                 Divider()
                 Toggle("Lock automatically when away", isOn: $model.lockEnabled)
+                Toggle("Resume after unlocking", isOn: $model.resumeAfterUnlock)
                 if model.lockEnabled && !ScreenLocker.authorized {
                     Button("Grant Accessibility for locking") { ScreenLocker.requestPermission() }
                     Text("Locking sends Control-Command-Q. Confirm it works on your Mac.")
@@ -125,7 +128,7 @@ struct ControlPanel: View {
                     Spacer()
                     Button(model.quitting ? "Quitting…" : "Quit") { model.quit() }.disabled(model.quitting)
                 }
-                Text("After locking or sleep, unlock your Mac and choose I’m back. Bluetooth never unlocks the Mac.")
+                Text("After a detected lock and unlock, an active session resumes when your device is near. If return detection is unavailable, choose I’m back. Pause stays paused. Bluetooth never unlocks the Mac.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(16)

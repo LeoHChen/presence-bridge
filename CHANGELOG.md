@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Resume an active work session automatically after observing a lock/unlock cycle, waiting for the selected Bluetooth device to be near and readiness to remain stable for two seconds.
+- Add **Resume after unlocking** (on by default). Pause and fresh launches remain inactive. Manual **I'm back** remains available when return detection is unavailable.
+- Observe an undocumented lock-state field through the public Core Graphics session query. Require an actual locked observation before accepting its disappearance as unlocked; screen wake or recent input alone cannot resume a session.
+- Preserve manual Focus overrides across automatic returns. Full lock/unlock and next-departure hardware testing is still required before release.
+
 ## 0.1.0 — 2026-09-15
 
 First public preview of Presence Bridge, a native macOS menu bar app for Watch/iPhone-assisted departure locking and optional shared Focus shortcuts.

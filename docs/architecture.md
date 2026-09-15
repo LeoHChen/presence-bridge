@@ -26,15 +26,17 @@ Use `ProcessInfo.systemUptime` for elapsed intervals; wall-clock changes cannot 
 3. A selected device that has become far or stale may begin departure after that veto expires.
 4. Otherwise, the idle threshold (default 300 seconds) begins departure. This still applies when a beacon is near, since the phone may be left on the desk.
 5. `leaving` must persist for 8 seconds in Bluetooth mode or 15 seconds in idle-only mode before `away`. New activity or recovered presence cancels the countdown. Focus can remain active during this grace period.
-6. An `away` transition while armed requests one lock if enabled and stops requesting Focus. The work session is latched until **I’m back**. Injected lock-key events cannot restart work.
+6. An `away` transition while armed requests one lock if enabled and stops requesting Focus. The work session waits for an observed lock/unlock cycle and fresh presence before automatic return, or **I’m back**. Injected lock-key events cannot restart work.
 
 Bluetooth is a hint that can accelerate departure, never an authentication factor. Arming Bluetooth locking requires fresh near observations. Once established, missing signal expires after 8 seconds; loss of the Mac radio also becomes far after 8 seconds. The departure grace then applies. Before a device is established, unavailable radio/unknown device do not invent a departure. Explicitly changing sensors, devices, thresholds, or connection mode pauses effects and requires re-arming. Interference can still cause an early departure. Calibration and a hardware validation pass are required.
 
 ## Work state and return
 
-The app deliberately distinguishes its presence estimate from permission to run effects. It launches with effects disarmed and scanning off. **Start work** arms the current session; effect toggles are separate. Screen sleep, system sleep, session switching, and detected departure require **I’m back** before effects resume.
+The app deliberately distinguishes its presence estimate from permission to run effects. It launches with effects disarmed and scanning off. **Start work** arms the current session; effect toggles are separate. Screen sleep, system sleep, session switching, and detected departure hold effects pending return. **Resume after unlocking** defaults on, but can resume only an already-armed session. Pause and restart cannot rearm themselves.
 
-Public workspace notifications cover screen and session lifecycle events, but are not a universal authenticated screen-lock/unlock API. `CGSessionCopyCurrentDictionary` is read only through its documented console/login keys. This MVP does not read undocumented lock-state keys, subscribe to private lock notifications, or inspect Apple security processes. A manual lock while the display remains awake may not be detected immediately; the idle timeout/Focus lease bounds the fallback. The next milestone must improve and validate this before promising fully automatic return.
+Public workspace notifications cover screen and session lifecycle events, but are not a universal authenticated screen-lock/unlock API. The unreleased return adapter adds the undocumented `CGSSessionScreenIsLocked` field from the public `CGSessionCopyCurrentDictionary` query. Initial field absence means unknown; absence can indicate unlocked only after the tracker has seen a locked value. The pure return policy requires a locked observation within each waiting cycle, an unlocked state, available desktop, fresh device readiness, and two seconds of stable readiness. It resets when paused and after each successful return. No private notifications or security-process inspection are used. See [automatic return](automatic-return.md) for the compatibility limitations and required hardware checks.
+
+Automatic return clears the lock latch and resets the departure countdown. It resumes the same Focus work session without resetting manual-override suppression. **I’m back** remains a manual fallback for a missed or unsupported lock cycle, including sleep without a detected lock.
 
 ## Focus lifecycle
 

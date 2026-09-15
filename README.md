@@ -8,6 +8,8 @@ A native macOS menu bar app that locks your Mac when your selected Apple Watch o
 
 ## Download and install
 
+**In development:** automatic resume after unlocking, once the selected Watch/iPhone is near again. The published **v0.1.0** below still requires **I’m back**; see [automatic return](docs/automatic-return.md) for the upcoming behavior and validation status.
+
 **[Download Presence Bridge 0.1.0 for Mac](https://github.com/LeoHChen/presence-bridge/releases/download/v0.1.0/PresenceBridge-0.1.0-macos-universal.zip)** · **[Release notes and checksums](https://github.com/LeoHChen/presence-bridge/releases/tag/v0.1.0)**
 
 The universal ZIP includes Apple Silicon and Intel code, the app, installation instructions, MIT license, and build information. No Xcode or Swift installation is needed to use the download. Intel hardware and older macOS versions have not been field-tested.

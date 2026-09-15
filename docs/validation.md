@@ -1,5 +1,9 @@
 # Validation record
 
+## Unreleased automatic return
+
+The return policy and lock-field interpretation add 11 tests for lock/unlock cycles, repeated departures, delayed Watch recovery, pause/restart, disabled automatic return, unknown observations, and invalid clocks. These exercise decisions without locking the machine. An unlocked-session probe on the local Mac confirms the lock field is absent, so the adapter correctly starts with unknown status. End-to-end automatic return and a second real departure are still pending; the v0.1.0 physical test below validated departure locking only.
+
 ## Initial local environment
 
 - 2026-09-15: Apple Silicon, macOS 27.0, Swift 6.4, Command Line Tools.

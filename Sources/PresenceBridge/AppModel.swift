@@ -15,6 +15,7 @@ final class AppModel: NSObject, ObservableObject {
     @Published private(set) var focusStatus = "Focus bridge is off"
     @Published private(set) var quitting = false
     @Published private(set) var walkTestRunning = false
+    @Published var resumeAfterUnlock = true
     @Published var lockEnabled = false {
         didSet {
             if lockEnabled && armed && bluetoothEnabled {
@@ -38,6 +39,9 @@ final class AppModel: NSObject, ObservableObject {
     private var screenAwake = true
     private var sessionActive = true
     private var lockedThisSession = false
+    private var screenLockMonitor = ScreenLockMonitor()
+    private var screenLockState: ScreenLockState = .unknown
+    private var autoResume = AutoResumePolicy()
     private var forwarding: AnyCancellable?
 
     override init() {
@@ -111,11 +115,16 @@ final class AppModel: NSObject, ObservableObject {
 
     func startWork() {
         guard !quitting else { return }
+        guard screenLockState != .locked else {
+            effectStatus = "Unlock your Mac before starting work."
+            return
+        }
         guard !(lockEnabled && bluetoothEnabled) || bluetooth.readyToArm else {
             effectStatus = "Cannot arm proximity locking yet: select your device and confirm a near signal."
             return
         }
         walkTestRunning = false
+        autoResume.reset()
         armed = true
         needsReturnConfirmation = false
         lockedThisSession = false
@@ -130,6 +139,7 @@ final class AppModel: NSObject, ObservableObject {
 
     func pause() {
         armed = false
+        autoResume.reset()
         walkTestRunning = false
         needsReturnConfirmation = false
         effectStatus = "Paused; cleaning up any Focus lease"
@@ -138,10 +148,13 @@ final class AppModel: NSObject, ObservableObject {
 
     func requestLock() {
         // Latch before posting key events: our own injected events must never imply a return.
+        autoResume.reset()
         needsReturnConfirmation = true
         lockedThisSession = true
         effectStatus = ScreenLocker.requestLock()
-            ? "Lock requested; use I’m back after unlocking"
+            ? (armed && resumeAfterUnlock
+                ? "Lock requested; waiting for unlock and a ready presence signal"
+                : "Lock requested; use I’m back after unlocking")
             : "Lock failed: grant Accessibility permission, then retry"
         tick()
     }
@@ -178,12 +191,28 @@ final class AppModel: NSObject, ObservableObject {
         let session = CGSessionCopyCurrentDictionary() as? [String: Any]
         let onConsole = session?[kCGSessionOnConsoleKey as String] as? Bool ?? false
         let loggedIn = session?[kCGSessionLoginDoneKey as String] as? Bool ?? false
+        screenLockState = screenLockMonitor.read(session: session, sessionAvailable: onConsole && loggedIn)
+        if screenLockState == .locked, armed {
+            needsReturnConfirmation = true
+            lockedThisSession = true
+        }
+        let desktopAvailable = screenAwake && sessionActive && onConsole && loggedIn
+        if autoResume.update(at: now, waiting: armed && needsReturnConfirmation && !quitting,
+                             enabled: resumeAfterUnlock, lockState: screenLockState,
+                             sessionAvailable: desktopAvailable,
+                             deviceReady: !bluetoothEnabled || bluetooth.readyToArm) {
+            needsReturnConfirmation = false
+            lockedThisSession = false
+            engine.reset()
+            // Preserve manual Focus overrides; this resumes the existing work session.
+            effectStatus = "Work resumed automatically after unlock"
+        }
         engine.policy = PresencePolicy(idleTimeout: idleTimeout,
             departureGrace: bluetoothEnabled ? 8 : 15,
             activityVeto: bluetoothEnabled ? 5 : 30,
             useBluetooth: bluetoothEnabled)
         state = engine.update(.init(time: now, idleSeconds: idle,
-            proximity: proximity, sessionAvailable: screenAwake && sessionActive && onConsole && loggedIn))
+            proximity: proximity, sessionAvailable: desktopAvailable && screenLockState != .locked))
 
         if walkTestRunning {
             if state == .away { effectStatus = "Walk-away detected. No lock was sent. Return and check the near signal." }
