@@ -2,17 +2,19 @@
 
 Reviewed against public Apple documentation on 2026-09-15. These are engineering constraints, not claims that third-party workarounds cannot exist. Recheck them when expanding the minimum OS versions.
 
-## Apple Watch proximity and Auto Unlock
+## Apple Watch: distinguish Auto Unlock from ordinary Bluetooth
 
 Apple describes a secure Auto Unlock exchange between supported devices. This is an OS feature, not a public developer feed of Watch presence or distance. There is no supported Watch-away auto-lock setting or public Auto Unlock proximity API used by this project. That API-availability conclusion is our assessment of the public platform surface, not a quoted Apple guarantee about all future OS versions.
 
 Sources: [Apple Platform Security: automatically unlock Apple devices](https://support.apple.com/guide/security/automatically-unlock-apple-devices-sec6ab47ebfc/web), [Unlock your Mac with Apple Watch](https://support.apple.com/en-us/102442).
 
+That does **not** mean all Watch proximity sensing is impossible. A stock Watch or iPhone may be discoverable/connectable through ordinary Core Bluetooth. We now attempt a selected-device connection and poll its RSSI, with advertisements as fallback. Discovery, identity stability, and connection acceptance must be tested on the actual device. On 2026-09-15, this implementation established a public Core Bluetooth connection to an owner-confirmed Apple Watch and received repeated connected RSSI readings on macOS 27. Physical walk-away locking still requires separate validation; this is one hardware observation, not a universal compatibility guarantee.
+
 Do not scrape private Continuity/Auto Unlock logs, reverse-engineer Watch identifiers, or present a Bluetooth name as authenticated ownership. WatchConnectivity supports communication between a watchOS app and its paired iOS app; it is not a general Mac-to-Watch proximity channel. A future companion still needs independent feasibility work.
 
-## BLE discovery is not passive ranging of every Apple device
+## Active BLE connection first; passive discovery is a fallback
 
-Core Bluetooth discovers advertising BLE peripherals. A device being paired in system Bluetooth settings does not mean it publishes discoverable advertisements with a stable identity for this application. RSSI fluctuates with orientation, obstacles, and radio traffic. It is not a meter estimate.
+Core Bluetooth discovers advertising BLE peripherals. A device being paired in system Bluetooth settings does not mean it publishes discoverable advertisements with a stable identity for this application. RSSI fluctuates with orientation, obstacles, and radio traffic. It is not a meter estimate. The active path uses public [connect](https://developer.apple.com/documentation/corebluetooth/cbcentralmanager/connect(_:options:)) and [readRSSI](https://developer.apple.com/documentation/corebluetooth/cbperipheral/readrssi()) calls; it does not need to read application data or protected GATT characteristics. A successful connection is still not proof of identity.
 
 iOS background peripheral advertising differs from foreground behavior: the local name is omitted and service identifiers move to an overflow area discoverable by an iOS device explicitly scanning for them. Therefore, a naive iPhone advertiser plus Mac scanner is not a demonstrated background solution. A future design may need a maintained, authenticated GATT connection, a different central/peripheral arrangement, or another signal. Test suspension, force-quit, phone lock, power saving, and reconnect behavior.
 

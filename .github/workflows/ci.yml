@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test presence and Focus policies
-        run: swift test --disable-xctest
+        run: bash scripts/test.sh
       - name: Build signed local app bundle
         run: bash scripts/build-app.sh
       - name: Check executable without sensors or effects

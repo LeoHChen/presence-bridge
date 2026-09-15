@@ -1,6 +1,6 @@
 # ADR-0001: Local native MVP with shared Focus shortcuts
 
-**Status:** Accepted for the developer MVP
+**Status:** Accepted for the developer MVP; sensor approach extended by [ADR-0002](0002-active-device-proximity.md)
 
 **Date:** 2026-09-15
 

@@ -12,9 +12,9 @@ A local-first macOS menu bar app that estimates when you leave your desk, reques
 |---|---|
 | Detect Mac activity | Reads seconds since input; no keystroke content |
 | Estimate departure | Idle timeout plus a 15-second grace period |
-| Optional Bluetooth signal | Core Bluetooth scan of a selected advertising BLE device; smoothed RSSI and stale-signal handling |
-| Apple Watch proximity | **Not available:** Apple's Auto Unlock proximity/authentication signal is not exposed as a public app API |
-| Ordinary iPhone as a beacon | **Not reliable:** a nearby or paired iPhone is not guaranteed to advertise a stable, continuously discoverable BLE identity |
+| Optional Bluetooth signal | Active Core Bluetooth connection to a selected device, connected RSSI polling, passive fallback, reconnection, and calibration |
+| Apple Watch proximity | **Experimental:** ordinary BLE advertisements/connection may work; Apple's Auto Unlock authentication signal remains unavailable |
+| Ordinary iPhone as a beacon | **Try active connection first:** support depends on the device/OS; passive advertisements alone may stop or rotate |
 | Automatically lock the Mac | Opt-in Control-Command-Q request through public event APIs; requires Accessibility and device testing |
 | Automatically change iPhone Focus | User-created Mac shortcuts change a **shared** Focus, which Apple syncs to the iPhone |
 | Silence only the iPhone, keep all Mac notifications | **Not implemented:** shared Focus also affects the Mac; disabling Focus sharing prevents this bridge reaching the iPhone |
@@ -30,7 +30,7 @@ Requires a Mac with Swift 6.0+ (Xcode 16+ or compatible Command Line Tools) and 
 ```sh
 git clone https://github.com/LeoHChen/presence-bridge.git
 cd presence-bridge
-swift test --disable-xctest
+bash scripts/test.sh
 bash scripts/build-app.sh
 open "dist/Presence Bridge.app"
 ```
@@ -38,23 +38,27 @@ open "dist/Presence Bridge.app"
 1. Open the person icon in the menu bar. Observe the state and idle counter first.
 2. For Focus, create **At Mac** and the three shortcuts in the [Shortcuts setup guide](docs/shortcuts.md). Enable **Share Across Devices** on the Mac and iPhone. Test the notification effect on both devices.
 3. For locking, enable **Lock automatically when away**, grant Accessibility to **Presence Bridge**, and test **Lock now** after saving your work. Visually verify that the Mac requires authentication.
-4. Choose the desired effects, then **Start work**. Default departure is 5 minutes without input plus 15 seconds of grace. A far/missing selected BLE beacon can shorten this to 30 seconds of inactivity plus grace.
+4. Choose the desired effects, then **Start work**. Default departure is 5 minutes without input plus 15 seconds of grace in idle-only mode. Bluetooth mode uses a 5-second input veto, 8-second departure grace, and 8-second signal expiry. See the walk-away setup below.
 5. After departure, locking, screen sleep, or session switching, unlock if necessary and click **I’m back**. **Pause** stops automatic effects and attempts to release the Focus lease.
 
 Use a stable copy in `/Applications/Presence Bridge.app` before granting permissions or enabling **Launch at login**. Local builds are ad-hoc signed, not notarized. Do not disable Gatekeeper or SIP. Each launch starts in observation mode, including login launches.
 
 ## Bluetooth is optional
 
-Turn on **Scan Bluetooth (experimental)**, explicitly select your advertising BLE device, and observe it both at the desk and away. A tested dedicated beacon is a better experiment than relying on undocumented Watch/iPhone advertisements. Device names are not identity proof. The app neither pairs with devices nor connects to services.
+Turn on **Use iPhone / Watch proximity**, select your own device, and leave **Maintain an active Bluetooth connection** enabled. The app connects only to that selection and reads RSSI every two seconds. It retries failed connections and uses advertisements when a connection is unavailable. It does not read private Bluetooth databases or Apple's Auto Unlock state.
 
-RSSI thresholds are initial defaults, not meters: near at −65 dBm or stronger, far at −78 dBm or weaker, three qualifying smoothed observations, and 12 seconds before a previously seen device becomes stale. With Bluetooth off, denied, or never observed, the normal idle timeout applies. A beacon left on the desk cannot suppress the idle timeout.
+Keep the selected device at the desk and click **Calibrate at desk**, then wait for fresh near samples. Use **Test walking away** before enabling locks. This test runs the actual departure policy with lock and Focus effects disabled. After a successful test, enable automatic locking and click **Start work**. The app refuses to arm a Bluetooth lock session until the device has been observed near.
+
+Signal strength is not distance. A typical complete signal loss reaches an away decision about 16–17 seconds after the last valid reading; weak-signal departure also depends on smoothing and the chosen threshold. New input cancels departure. If the Mac's radio becomes unavailable after a near device was established, prolonged radio loss is treated as departure too. A phone left on the desk still cannot defeat the idle timeout.
+
+**[Detailed walk-away setup and diagnostics](docs/proximity-setup.md).** Compatibility is experimental until your device passes the walk test. The public-API active-connection approach is also used by [BLEUnlock](https://github.com/ts1/BLEUnlock); this project's adapter is independently implemented and never unlocks the Mac.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     A[Mac idle time] --> D[Presence engine]
-    B[Optional BLE scan] --> C[RSSI smoothing and freshness]
+    B[Selected BLE connection / advertisements] --> C[RSSI smoothing and freshness]
     C --> D
     S[Screen and session events] --> D
     D --> E[Work-session gate and departure grace]
@@ -78,7 +82,7 @@ flowchart LR
 
 ```sh
 swift build
-swift test --disable-xctest
+bash scripts/test.sh
 swift run PresenceBridge --self-check
 bash scripts/build-app.sh
 ```
