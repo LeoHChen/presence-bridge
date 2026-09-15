@@ -18,3 +18,10 @@ jobs:
         run: |
           cd dist/releases
           shasum -a 256 -c SHA256SUMS.txt
+      - name: Retain verified preview package
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-preview-${{ github.sha }}
+          path: dist/releases/*
+          if-no-files-found: error
+          retention-days: 14
