@@ -1,0 +1,18 @@
+name: Swift checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test presence and Focus policies
+        run: swift test --disable-xctest
+      - name: Build signed local app bundle
+        run: bash scripts/build-app.sh
+      - name: Check executable without sensors or effects
+        run: '"dist/Presence Bridge.app/Contents/MacOS/PresenceBridge" --self-check'
