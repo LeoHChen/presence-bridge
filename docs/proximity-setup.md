@@ -60,6 +60,14 @@ After the walk test succeeds:
 
 The app requests Control-Command-Q; successful event posting is not confirmed locking. It never unlocks the Mac. Apple Watch Auto Unlock may handle authentication independently when you return.
 
+### Permission appears enabled, but locking fails
+
+On the tested macOS 27 system, the permission page is named **System Settings → Privacy & Security → Device Control and Data Access**. Earlier macOS versions call it **Accessibility**.
+
+If **Lock now** reports that permission is missing, first quit and reopen the app. If it still fails, quit the app, remove the Presence Bridge entry from that permission page, add the exact `.app` bundle you are currently running, and enable its switch. Authenticate in macOS if requested, then reopen Presence Bridge. Do not grant a different copy with the same display name. Merely adding the current bundle over an existing entry did not fix the tested local mismatch; removing the entry first did.
+
+Local builds are ad-hoc signed, and permissions may need reapproval after a rebuild. Keep one stable app location, finish building before granting access, and repeat **Lock now** after replacing the executable. Relaunching clears session calibration and effect toggles; reconnect, recalibrate at your desk, and enable the desired effects again.
+
 ## Local diagnostic command
 
 An explicit diagnostic prints nearby names and RSSI to the invoking terminal and never runs lock or Focus effects:

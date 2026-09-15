@@ -11,7 +11,9 @@
 - Active Core Bluetooth connection to an owner-confirmed Apple Watch: passed on this Mac. Repeated connected RSSI callbacks arrived approximately every two seconds, with near-desk readings around −38…−41 dBm. No companion app or private Bluetooth database was used.
 - Owner-requested walk test: connection remained alive while RSSI moved from roughly −37…−45 dBm near the desk to −66…−70 dBm farther away, then recovered. The initial generic −78 dBm leave threshold did not classify this movement as away. This demonstrates why desk calibration is required; it is not a passed auto-lock test.
 - The owner confirmed walking away and returning with the Watch screen dark. The app subsequently showed Away at approximately −86…−87 dBm and Near again around −44 dBm while the active connection continued. Presence-state transitions are validated on this setup; they do not prove that the Mac locked.
-- Desk calibration completed at approximately −60 dBm for the leave threshold. Actual locking is pending macOS Accessibility permission and the final lock test. No lock or Focus actions ran during observation.
+- Desk calibration completed at approximately −60 dBm for the leave threshold. No lock or Focus actions ran during observation.
+- Initial **Lock now** attempt: the app correctly reported missing Accessibility permission and did not post a lock event. The macOS 27 permission page (Device Control and Data Access) showed an enabled entry, but restarting the current local bundle did not resolve the discrepancy. With the owner's approval and OS authentication, removing the old entry, adding the exact current bundle while it was closed, and reopening it restored permission. Adding over the existing entry alone was insufficient.
+- **Lock now** passed after permission repair: the owner confirmed the Mac locked and they unlocked normally. The app remained disarmed with **I’m back** required. End-to-end automatic Watch departure locking is the next manual check.
 - macOS 13 is the deployment target; older OS/device combinations have not yet been field-tested.
 
 ## Automated coverage
@@ -29,8 +31,8 @@ CI intentionally does not post lock events, request Bluetooth/Accessibility perm
 | Idle departure | Countdown after threshold; one lock request if enabled | Pending |
 | Typing while beacon is far | No departure within activity veto | Policy tests passed |
 | Phone/beacon stays on desk | Idle timeout still applies | Pending |
-| Lock now / automatic lock | Mac visibly locked; authentication required | Pending |
-| Accessibility denied/revoked | Visible failure, no false “locked” claim | Pending |
+| Lock now / automatic lock | Mac visibly locked; authentication required | Lock now passed with owner confirmation; automatic lock pending |
+| Accessibility denied/revoked | Visible failure, no false “locked” claim | Passed for an untrusted running app despite an enabled Settings entry; live revocation remains pending |
 | Sleep/wake, lid close, session switching | Focus cleanup attempted; return confirmation required | Pending |
 | Manual lock with display awake | Document detection delay; no claim of full lock observation | Pending |
 | Bluetooth off/denied/device never seen | Cannot arm device locking; established-session radio loss expires to far | Policy tests passed; physical radio test pending |
