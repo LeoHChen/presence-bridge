@@ -20,7 +20,7 @@ mkdir -p "$PACKAGE_DIR"
 
 PRESENCE_APP_PATH="$APP_PATH" bash scripts/build-app.sh --arch arm64 --arch x86_64
 EXECUTABLE="$APP_PATH/Contents/MacOS/PresenceBridge"
-/usr/bin/lipo -verify_arch arm64 x86_64 "$EXECUTABLE"
+/usr/bin/lipo "$EXECUTABLE" -verify_arch arm64 x86_64
 /usr/bin/codesign --verify --deep --strict "$APP_PATH"
 "$EXECUTABLE" --self-check
 cp LICENSE "$PACKAGE_DIR/LICENSE.txt"
