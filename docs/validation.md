@@ -10,7 +10,8 @@
 - Local 40-second Bluetooth scan: passed, including repeated nearby Watch advertisements. Device names/identifiers are intentionally omitted from this public record.
 - Active Core Bluetooth connection to an owner-confirmed Apple Watch: passed on this Mac. Repeated connected RSSI callbacks arrived approximately every two seconds, with near-desk readings around −38…−41 dBm. No companion app or private Bluetooth database was used.
 - Owner-requested walk test: connection remained alive while RSSI moved from roughly −37…−45 dBm near the desk to −66…−70 dBm farther away, then recovered. The initial generic −78 dBm leave threshold did not classify this movement as away. This demonstrates why desk calibration is required; it is not a passed auto-lock test.
-- Calibrated departure, screen-off conditions, and actual locking still require final confirmation. No lock or Focus actions ran during this diagnostic.
+- The owner confirmed walking away and returning with the Watch screen dark. The app subsequently showed Away at approximately −86…−87 dBm and Near again around −44 dBm while the active connection continued. Presence-state transitions are validated on this setup; they do not prove that the Mac locked.
+- Desk calibration completed at approximately −60 dBm for the leave threshold. Actual locking is pending macOS Accessibility permission and the final lock test. No lock or Focus actions ran during observation.
 - macOS 13 is the deployment target; older OS/device combinations have not yet been field-tested.
 
 ## Automated coverage
@@ -24,8 +25,9 @@ CI intentionally does not post lock events, request Bluetooth/Accessibility perm
 | Scenario | Expected result | Initial status |
 |---|---|---|
 | Fresh launch | Observation only; no Bluetooth prompt or effects | Passed (updated control panel) |
+| Watch walk-away and return | Active signal persists; Away then Near | Passed on one owner-confirmed Watch/Mac setup; lock effect pending |
 | Idle departure | Countdown after threshold; one lock request if enabled | Pending |
-| Typing while beacon is far | No departure within activity veto | Pending |
+| Typing while beacon is far | No departure within activity veto | Policy tests passed |
 | Phone/beacon stays on desk | Idle timeout still applies | Pending |
 | Lock now / automatic lock | Mac visibly locked; authentication required | Pending |
 | Accessibility denied/revoked | Visible failure, no false “locked” claim | Pending |
