@@ -11,8 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test presence and Focus policies
-        run: swift test --disable-xctest
-      - name: Build signed local app bundle
-        run: bash scripts/build-app.sh
-      - name: Check executable without sensors or effects
-        run: '"dist/Presence Bridge.app/Contents/MacOS/PresenceBridge" --self-check'
+        run: bash scripts/test.sh
+      - name: Build and check universal preview package
+        run: bash scripts/package-release.sh
+      - name: Verify release checksums
+        run: |
+          cd dist/releases
+          shasum -a 256 -c SHA256SUMS.txt
+      - name: Retain verified preview package
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-preview-${{ github.sha }}
+          path: dist/releases/*
+          if-no-files-found: error
+          retention-days: 14

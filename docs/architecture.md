@@ -9,10 +9,10 @@ The first release proves a local Mac presence-to-action loop. It exposes uncerta
 | Component | Responsibility |
 |---|---|
 | `PresenceEngine` | Decide unknown / present / leaving / away / suspended from monotonic samples |
-| `ProximityFilter` | Exponential RSSI smoothing, hysteresis, three observations, freshness |
+| `ProximityFilter` / `DevicePresence` | Exponential RSSI smoothing, hysteresis, three observations, freshness, radio-loss handling, and near-before-arm eligibility |
 | `FocusPolicy` | Serialize effects, track possible ownership, renew, back off, respect skipped recipes |
 | `AppModel` | Poll every second; gate effects behind a user-started work session; handle sleep and return |
-| `BluetoothMonitor` | Opt-in Core Bluetooth discovery on the main queue; selected UUID only feeds decisions |
+| `BluetoothMonitor` | Opt-in discovery, selected-device connection, two-second RSSI polling, timeout/reconnect, and passive fallback on the main queue |
 | `ScreenLocker` | Request Apple's Control-Command-Q shortcut using public Core Graphics APIs |
 | `ShortcutRunner` | Run fixed shortcut names without a shell; validate output receipts; enforce a local process timeout |
 | SwiftUI menu bar | Status, effect toggles, device selection, pause, manual return, login item controls |
@@ -22,13 +22,13 @@ The first release proves a local Mac presence-to-action loop. It exposes uncerta
 Use `ProcessInfo.systemUptime` for elapsed intervals; wall-clock changes cannot shorten a departure countdown.
 
 1. An unavailable desktop session produces `suspended`; invalid idle data produces `unknown`. Neither enables Focus or triggers an automatic lock.
-2. Input within 30 seconds vetoes Bluetooth departure.
+2. Input within 5 seconds vetoes Bluetooth departure (30 seconds in idle-only mode).
 3. A selected device that has become far or stale may begin departure after that veto expires.
 4. Otherwise, the idle threshold (default 300 seconds) begins departure. This still applies when a beacon is near, since the phone may be left on the desk.
-5. `leaving` must persist for 15 seconds before `away`. New activity or recovered presence cancels the countdown. Focus can remain active during this grace period.
+5. `leaving` must persist for 8 seconds in Bluetooth mode or 15 seconds in idle-only mode before `away`. New activity or recovered presence cancels the countdown. Focus can remain active during this grace period.
 6. An `away` transition while armed requests one lock if enabled and stops requesting Focus. The work session is latched until **I’m back**. Injected lock-key events cannot restart work.
 
-Bluetooth is a hint that can accelerate departure, never an authentication factor. Disabled/denied Bluetooth, no selected device, or a device never observed use the ordinary idle fallback. A healthy scanner losing a previously observed device produces `far`; interference can therefore cause an early departure. Calibration and a hardware validation pass are required.
+Bluetooth is a hint that can accelerate departure, never an authentication factor. Arming Bluetooth locking requires fresh near observations. Once established, missing signal expires after 8 seconds; loss of the Mac radio also becomes far after 8 seconds. The departure grace then applies. Before a device is established, unavailable radio/unknown device do not invent a departure. Explicitly changing sensors, devices, thresholds, or connection mode pauses effects and requires re-arming. Interference can still cause an early departure. Calibration and a hardware validation pass are required.
 
 ## Work state and return
 
@@ -56,3 +56,11 @@ Only idle timeout and selected peripheral UUID persist in app preferences. Adver
 ## Delivery
 
 Swift Package Manager keeps the initial project small and dependency-free. A script assembles an `LSUIElement` application bundle with Bluetooth usage text and ad-hoc signing. `SMAppService.mainApp` supplies opt-in login launch; an example LaunchAgent is provided for development. Signing/notarization and long-running hardware validation remain release work.
+
+## Active Bluetooth adapter
+
+Retain the selected CBPeripheral, call connect, and read RSSI at most every two seconds while connected. Connection attempts time out after 15 seconds and back off for five seconds. An RSSI response missing for six seconds triggers reconnection. Disconnection does not reset signal freshness, so reconnect attempts cannot indefinitely prevent departure. Advertisements supply fallback measurements when connected RSSI is unavailable. The adapter reads no services/characteristics from the selected device. Public standard-service retrieval only helps discover devices already connected by the system. No connections are made to other discovered devices.
+
+Calibration chooses a leave threshold 15 dB below the current desk signal, bounded to −100…−45 dBm, with an 8 dB hysteresis band. It resets the samples and requires fresh calibration evidence before arming. Calibration is session-only. Device names are not authenticated. The bounded discovery list prioritizes named devices over rotating anonymous advertisements.
+
+The explicit diagnostic command prints local names/RSSI to its invoking terminal. It does not store a log itself or run effects. Its output should not be committed or shared without redaction.

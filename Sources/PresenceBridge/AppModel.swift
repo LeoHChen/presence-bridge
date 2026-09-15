@@ -14,13 +14,22 @@ final class AppModel: NSObject, ObservableObject {
     @Published private(set) var effectStatus = "Observation mode: no lock or Focus changes"
     @Published private(set) var focusStatus = "Focus bridge is off"
     @Published private(set) var quitting = false
-    @Published var lockEnabled = false
+    @Published private(set) var walkTestRunning = false
+    @Published var lockEnabled = false {
+        didSet {
+            if lockEnabled && armed && bluetoothEnabled {
+                pause()
+                effectStatus = "Locking enabled. Confirm the device is near, then choose Start work."
+            }
+        }
+    }
     @Published var focusEnabled = false
     @Published var idleTimeout: Double {
         didSet { UserDefaults.standard.set(idleTimeout, forKey: "idleTimeout") }
     }
     @Published private(set) var bluetoothEnabled = false
     @Published private(set) var selectedDevice: UUID?
+    @Published private(set) var activeBluetooth = true
     let bluetooth = BluetoothMonitor()
     private var engine = PresenceEngine()
     private var focus = FocusPolicy()
@@ -53,20 +62,60 @@ final class AppModel: NSObject, ObservableObject {
     }
 
     func setBluetooth(_ enabled: Bool) {
+        if armed || walkTestRunning { pause() }
         bluetoothEnabled = enabled
         if enabled { bluetooth.start(selected: selectedDevice) } else { bluetooth.stop() }
         engine.reset()
     }
 
     func selectDevice(_ identifier: UUID?) {
+        if armed || walkTestRunning { pause() }
         selectedDevice = identifier
         UserDefaults.standard.set(identifier?.uuidString, forKey: "selectedDevice")
         bluetooth.select(identifier)
         engine.reset()
     }
 
+    func setActiveBluetooth(_ active: Bool) {
+        if armed || walkTestRunning { pause() }
+        activeBluetooth = active
+        bluetooth.setActiveConnection(active)
+        engine.reset()
+    }
+
+    func calibrateAtDesk() {
+        if armed || walkTestRunning { pause() }
+        effectStatus = bluetooth.calibrateAtDesk()
+            ? "Desk signal saved. Wait for fresh samples, then test walking away."
+            : "Keep the device near the Mac until at least three valid samples arrive."
+        engine.reset()
+    }
+
+    func setFarThreshold(_ value: Double) {
+        if armed || walkTestRunning { pause() }
+        bluetooth.setFarThreshold(value)
+        engine.reset()
+    }
+
+    func startWalkTest() {
+        guard bluetoothEnabled, bluetooth.readyToArm else {
+            effectStatus = "Select a device and wait for a near signal before the walk test."
+            return
+        }
+        pause()
+        engine.reset()
+        walkTestRunning = true
+        effectStatus = "Walk test: take the selected device away. Locking and Focus stay off."
+        tick()
+    }
+
     func startWork() {
         guard !quitting else { return }
+        guard !(lockEnabled && bluetoothEnabled) || bluetooth.readyToArm else {
+            effectStatus = "Cannot arm proximity locking yet: select your device and confirm a near signal."
+            return
+        }
+        walkTestRunning = false
         armed = true
         needsReturnConfirmation = false
         lockedThisSession = false
@@ -81,6 +130,7 @@ final class AppModel: NSObject, ObservableObject {
 
     func pause() {
         armed = false
+        walkTestRunning = false
         needsReturnConfirmation = false
         effectStatus = "Paused; cleaning up any Focus lease"
         tick()
@@ -128,9 +178,18 @@ final class AppModel: NSObject, ObservableObject {
         let session = CGSessionCopyCurrentDictionary() as? [String: Any]
         let onConsole = session?[kCGSessionOnConsoleKey as String] as? Bool ?? false
         let loggedIn = session?[kCGSessionLoginDoneKey as String] as? Bool ?? false
-        engine.policy = PresencePolicy(idleTimeout: idleTimeout, useBluetooth: bluetoothEnabled)
+        engine.policy = PresencePolicy(idleTimeout: idleTimeout,
+            departureGrace: bluetoothEnabled ? 8 : 15,
+            activityVeto: bluetoothEnabled ? 5 : 30,
+            useBluetooth: bluetoothEnabled)
         state = engine.update(.init(time: now, idleSeconds: idle,
             proximity: proximity, sessionAvailable: screenAwake && sessionActive && onConsole && loggedIn))
+
+        if walkTestRunning {
+            if state == .away { effectStatus = "Walk-away detected. No lock was sent. Return and check the near signal." }
+            else if state == .leaving { effectStatus = "Departure signal detected; counting the eight-second grace period." }
+            else if state == .present { effectStatus = "Walk test: device/activity is present. Take the selected device away." }
+        }
 
         if armed, state == .away, !needsReturnConfirmation {
             needsReturnConfirmation = true

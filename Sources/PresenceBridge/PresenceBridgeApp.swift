@@ -11,6 +11,10 @@ enum Launcher {
             print("Presence Bridge self-check passed; no sensors or effects started.")
             return
         }
+        if let index = CommandLine.arguments.firstIndex(of: "--diagnose-bluetooth") {
+            BluetoothDiagnostic.run(arguments: Array(CommandLine.arguments[index...]))
+            return
+        }
         PresenceBridgeApp.main()
     }
 }
@@ -19,6 +23,10 @@ struct PresenceBridgeApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {
+        Window("Presence Bridge", id: "control-panel") {
+            ControlPanel(model: model)
+        }
+        .defaultSize(width: 420, height: 760)
         MenuBarExtra("Presence Bridge", systemImage: model.armed ? "person.crop.circle.badge.checkmark" : "person.crop.circle") {
             ControlPanel(model: model)
         }
@@ -28,6 +36,7 @@ struct PresenceBridgeApp: App {
 
 struct ControlPanel: View {
     @ObservedObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         ScrollView {
@@ -46,7 +55,7 @@ struct ControlPanel: View {
                 HStack {
                     Button(model.needsReturnConfirmation ? "I’m back" : "Start work") { model.startWork() }
                         .disabled(model.quitting)
-                    Button("Pause") { model.pause() }.disabled(!model.armed)
+                    Button("Pause") { model.pause() }.disabled(!model.armed && !model.walkTestRunning)
                     Button("Lock now") { model.requestLock() }.disabled(model.quitting)
                 }
                 Divider()
@@ -66,17 +75,22 @@ struct ControlPanel: View {
                     Text("\(Int(model.idleTimeout / 60)) min").monospacedDigit()
                 }
                 Slider(value: $model.idleTimeout, in: 60...1800, step: 60)
-                Text("Departure adds a 15-second grace period. Bluetooth departure also requires 30 seconds without input.")
+                Text(model.bluetoothEnabled
+                    ? "Bluetooth departure: 5 seconds without input, then an 8-second grace period. Missing signal expires after 8 seconds."
+                    : "Idle departure adds a 15-second grace period.")
                     .font(.caption).foregroundStyle(.secondary)
                 Divider()
-                Toggle("Scan Bluetooth (experimental)", isOn: Binding(
+                Toggle("Use iPhone / Watch proximity", isOn: Binding(
                     get: { model.bluetoothEnabled }, set: { model.setBluetooth($0) }))
                 Text(model.bluetooth.status).font(.caption).foregroundStyle(.secondary)
                 if model.bluetoothEnabled {
+                    Toggle("Maintain an active Bluetooth connection", isOn: Binding(
+                        get: { model.activeBluetooth }, set: { model.setActiveBluetooth($0) }))
+                    Text(model.bluetooth.connectionStatus).font(.caption)
                     Menu("\(model.selectedDevice == nil ? "Choose advertising device" : "Change selected device")") {
                         Button("Use idle detection only") { model.selectDevice(nil) }
                         ForEach(model.bluetooth.devices) { device in
-                            Button("\(device.name) · \(device.rssi) dBm · \(device.id.uuidString.prefix(6))") {
+                            Button("\(device.name) · \(device.rssi == 127 ? "known device" : String(device.rssi) + " dBm") · \(device.id.uuidString.prefix(6))") {
                                 model.selectDevice(device.id)
                             }
                         }
@@ -84,11 +98,25 @@ struct ControlPanel: View {
                     if let id = model.selectedDevice {
                         Text("Selected: \(id.uuidString.prefix(8))").font(.caption.monospaced())
                     }
-                    Text("Apple Watch Auto Unlock signals are unavailable. An iPhone may not advertise consistently. Use a tested BLE beacon.")
+                    Text("Signal: \(model.bluetooth.smoothedRSSI.map { String(Int($0)) + " dBm" } ?? "waiting") · \(model.bluetooth.sampleCount) samples")
+                        .font(.caption.monospacedDigit())
+                    HStack {
+                        Button("Calibrate at desk") { model.calibrateAtDesk() }
+                        Button("Test walking away") { model.startWalkTest() }
+                    }
+                    HStack {
+                        Text("Leave threshold")
+                        Spacer()
+                        Text("\(Int(model.bluetooth.currentFarThreshold)) dBm").monospacedDigit()
+                    }.font(.caption)
+                    Slider(value: Binding(get: { model.bluetooth.currentFarThreshold },
+                        set: { model.setFarThreshold($0) }), in: -100 ... -45, step: 1)
+                    Text("A less-negative threshold locks at a stronger signal. Calibrate and test first. Device compatibility varies; Apple’s Auto Unlock is a separate feature.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Divider()
                 HStack {
+                    Button("Open panel") { openWindow(id: "control-panel") }
                     Menu("Launch at login") {
                         Button("Enable") { model.setLaunchAtLogin(true) }
                         Button("Disable") { model.setLaunchAtLogin(false) }
@@ -102,6 +130,6 @@ struct ControlPanel: View {
             }
             .padding(16)
         }
-        .frame(width: 400, height: 680)
+        .frame(width: 420, height: 760)
     }
 }

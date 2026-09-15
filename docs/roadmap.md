@@ -14,7 +14,7 @@ Remaining exit criteria:
 
 ## v0.2 — Improve presence and phone-only feasibility
 
-4. **Calibrated BLE signals:** hardware experiment with a dedicated beacon; document packet intervals, false departure rate, battery impact, and RSSI thresholds. Add a calibration UI and privacy-preserving diagnostic export only with opt-in.
+4. **Calibrated BLE signals:** hardware experiment with a dedicated beacon; document packet intervals, false departure rate, battery impact, and RSSI thresholds. The active connection adapter, calibration UI, near-before-arm gate, and effect-free walk test are now implemented. Validate them on owner-confirmed hardware; any future diagnostic export remains opt-in.
 5. **Companion feasibility:** prototype an authenticated connection with a deliberate Mac/iPhone central/peripheral arrangement. Test background, locked phone, force-quit, and reconnect. Explore Watch participation without treating Auto Unlock as an API. Stop or pivot if reliability fails.
 6. **iPhone-only Focus:** evaluate supported personal automation triggers or an optional relay. Document exactly how it executes on iOS, latency, required hardware/subscriptions, privacy, and behavior with Share Across Devices off. A silent push, URL, or companion alone is not a solution. Preserve the local lock-only mode.
 

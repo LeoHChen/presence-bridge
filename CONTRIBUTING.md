@@ -5,13 +5,13 @@ Start with an issue describing the user-visible problem, target devices/OS versi
 ## Local checks
 
 ```sh
-swift test --disable-xctest
+bash scripts/test.sh
 bash scripts/build-app.sh
 "dist/Presence Bridge.app/Contents/MacOS/PresenceBridge" --self-check
 git diff --check
 ```
 
-Tests use Swift Testing and require Swift 6.0+. If Command Line Tools cannot locate the test runtime, use a full Xcode installation or the repository’s macOS CI. A missing framework is not a passed suite.
+Tests use Swift Testing and require Swift 6.0+. The test helper handles a Swift 6.4 Command Line Tools macro-discovery issue by explicitly loading the installed Apple Testing macro plugin; full Xcode uses the usual SwiftPM path. If Command Line Tools cannot locate the test runtime, use a full Xcode installation or the repository’s macOS CI. A missing framework is not a passed suite.
 
 Add deterministic tests for behavior changes to the policies. Never make CI lock a workstation or change Focus. For system integration changes, use the manual [validation checklist](docs/validation.md) and state exactly which devices were tested.
 
