@@ -13,7 +13,8 @@
 - The owner confirmed walking away and returning with the Watch screen dark. The app subsequently showed Away at approximately −86…−87 dBm and Near again around −44 dBm while the active connection continued. Presence-state transitions are validated on this setup; they do not prove that the Mac locked.
 - Desk calibration completed at approximately −60 dBm for the leave threshold. No lock or Focus actions ran during observation.
 - Initial **Lock now** attempt: the app correctly reported missing Accessibility permission and did not post a lock event. The macOS 27 permission page (Device Control and Data Access) showed an enabled entry, but restarting the current local bundle did not resolve the discrepancy. With the owner's approval and OS authentication, removing the old entry, adding the exact current bundle while it was closed, and reopening it restored permission. Adding over the existing entry alone was insufficient.
-- **Lock now** passed after permission repair: the owner confirmed the Mac locked and they unlocked normally. The app remained disarmed with **I’m back** required. End-to-end automatic Watch departure locking is the next manual check.
+- **Lock now** passed after permission repair: the owner confirmed the Mac locked and they unlocked normally. The app required **I’m back** before resuming effects.
+- Automatic Watch departure test: with the selected Watch near, lock effects enabled, and a calibrated −59 dBm departure threshold, the app was armed for a screen-dark walk into another room. On return, the owner reported that it seemed to be working, and the app showed **Lock requested; use I’m back after unlocking** with a near Watch signal. Record this as an owner-reported successful automatic lock on one setup, not a measured latency/reliability benchmark. No Focus action was enabled.
 - macOS 13 is the deployment target; older OS/device combinations have not yet been field-tested.
 
 ## Automated coverage
@@ -27,11 +28,11 @@ CI intentionally does not post lock events, request Bluetooth/Accessibility perm
 | Scenario | Expected result | Initial status |
 |---|---|---|
 | Fresh launch | Observation only; no Bluetooth prompt or effects | Passed (updated control panel) |
-| Watch walk-away and return | Active signal persists; Away then Near | Passed on one owner-confirmed Watch/Mac setup; lock effect pending |
+| Watch walk-away and return | Active signal persists; Away then Near | Passed on one owner-confirmed Watch/Mac setup; automatic lock reported working |
 | Idle departure | Countdown after threshold; one lock request if enabled | Pending |
 | Typing while beacon is far | No departure within activity veto | Policy tests passed |
 | Phone/beacon stays on desk | Idle timeout still applies | Pending |
-| Lock now / automatic lock | Mac visibly locked; authentication required | Lock now passed with owner confirmation; automatic lock pending |
+| Lock now / automatic lock | Mac visibly locked; authentication required | Lock now confirmed; automatic Watch test reported working by owner, with lock request observed in app |
 | Accessibility denied/revoked | Visible failure, no false “locked” claim | Passed for an untrusted running app despite an enabled Settings entry; live revocation remains pending |
 | Sleep/wake, lid close, session switching | Focus cleanup attempted; return confirmation required | Pending |
 | Manual lock with display awake | Document detection delay; no claim of full lock observation | Pending |

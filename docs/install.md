@@ -1,0 +1,42 @@
+# Install Presence Bridge 0.1.0 (preview)
+
+Download: https://github.com/LeoHChen/presence-bridge/releases/tag/v0.1.0
+
+## Requirements and release status
+
+- macOS 13 or later. The ZIP contains both Apple Silicon and Intel code.
+- This is an experimental preview. The physical Watch walk-away test passed on one Apple Silicon Mac running macOS 27. Other Mac/device combinations need their own calibration and walk test; Intel hardware has not been field-tested.
+- This download is ad-hoc signed, without an Apple Developer ID certificate or notarization. macOS may block its first launch. Review the source and release before deciding to run it.
+- There is no installer, privileged helper, backend, or automatic updater. All actions start disabled on each launch.
+
+## Download and open
+
+1. Download **PresenceBridge-0.1.0-macos-universal.zip** from the release above. Optional verification: download **SHA256SUMS.txt**, **INSTALL.md**, and the build-info file into the same folder, then run `shasum -a 256 -c SHA256SUMS.txt` there. These checks detect mismatched downloads; they do not replace Apple signing or notarization.
+2. Expand the ZIP and drag **Presence Bridge.app** to **Applications**. Open that copy and keep using the same location.
+3. If macOS blocks an unidentified or unnotarized app, and you have chosen to trust this release, follow Apple's per-app **Open Anyway** process in **System Settings → Privacy & Security**: https://support.apple.com/en-us/102445. Managed Macs may disallow exceptions. Do not disable Gatekeeper or SIP, remove quarantine in bulk, or override a malware/damaged-app warning.
+
+## Set up Watch or iPhone departure locking
+
+1. Turn on **Use iPhone / Watch proximity** and allow Bluetooth access. Wake your Watch or iPhone if needed for discovery. Choose your own device; leave **Maintain an active Bluetooth connection** enabled.
+2. Wait for connected, fresh **near** readings while sitting normally at the desk. Click **Calibrate at desk**, then wait for at least three new samples.
+3. Click **Test walking away**. Take the device into another room for 30–40 seconds without touching the Mac. This test sends no lock command. Return and confirm that the app detected departure and now sees the device near again.
+4. Enable **Lock automatically when away**. Grant the exact app Accessibility permission. On the tested macOS 27 system, this page is named **Privacy & Security → Device Control and Data Access**; earlier versions call it **Accessibility**.
+5. Save work and click **Lock now**. Verify that the Mac locks and requires normal authentication to return.
+6. Wait for a near reading, click **I'm back** or **Start work**, and repeat the walk with the device. Automatic locking is now enabled. After each lock, unlock normally and click **I'm back** to rearm. Bluetooth never unlocks the Mac.
+
+**Pause** stops automatic actions. After quitting/relaunching, turn Bluetooth and the desired effects back on, recalibrate, and click **Start work** again. Calibration is session-only in this preview. You can use Apple's Auto Unlock independently.
+
+If the permission switch is enabled but **Lock now** still fails, quit Presence Bridge, remove its old permission entry, add the current Applications copy, enable access, and reopen the app. Rebuilding or replacing an ad-hoc signed app can require reapproval. Full setup: https://github.com/LeoHChen/presence-bridge/blob/v0.1.0/docs/proximity-setup.md
+
+## Optional shared Focus
+
+Watch locking does not require Shortcuts. Leave **Run shared Focus shortcuts** off unless you have created and tested the three recipes at https://github.com/LeoHChen/presence-bridge/blob/v0.1.0/docs/shortcuts.md.
+
+The integration changes a shared Focus on both Mac and iPhone. It does not implement iPhone-only silencing or detect individual duplicate notifications. End-to-end Focus behavior has not yet been field-tested.
+
+## Remove or roll back
+
+Click **Pause**, disable **Launch at login** if enabled, and quit Presence Bridge before replacing or removing the app. If you used Focus, check that **At Mac** is off on both devices. Remove only this app's Bluetooth/control permission entries if desired. For a future update, quit first and keep a known-working release; changes to the app signature may require permission reapproval.
+
+Report issues: https://github.com/LeoHChen/presence-bridge/issues
+Do not include device identifiers, nearby people's device names, or raw Bluetooth logs.

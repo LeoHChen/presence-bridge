@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test presence and Focus policies
         run: bash scripts/test.sh
-      - name: Build signed local app bundle
-        run: bash scripts/build-app.sh
-      - name: Check executable without sensors or effects
-        run: '"dist/Presence Bridge.app/Contents/MacOS/PresenceBridge" --self-check'
+      - name: Build and check universal preview package
+        run: bash scripts/package-release.sh
+      - name: Verify release checksums
+        run: |
+          cd dist/releases
+          shasum -a 256 -c SHA256SUMS.txt

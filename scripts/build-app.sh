@@ -2,9 +2,9 @@
 set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
-swift build -c release
-BIN_DIR="$(swift build -c release --show-bin-path)"
-APP_PATH="$PROJECT_ROOT/dist/Presence Bridge.app"
+swift build -c release "$@"
+BIN_DIR="$(swift build -c release --show-bin-path "$@")"
+APP_PATH="${PRESENCE_APP_PATH:-$PROJECT_ROOT/dist/Presence Bridge.app}"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
 cp "$BIN_DIR/PresenceBridge" "$APP_PATH/Contents/MacOS/PresenceBridge"
 cp Resources/Info.plist "$APP_PATH/Contents/Info.plist"

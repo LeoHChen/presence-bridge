@@ -31,10 +31,10 @@ There is no app backend, remote command listener, cloud API key, camera, microph
 
 ## Distribution
 
-The script produces an ad-hoc signed local bundle unless `PRESENCE_SIGN_IDENTITY` selects a developer identity. Ad-hoc signing is not notarization or a trust endorsement. Stable Developer ID signing, notarization, a release support matrix, and field testing are required before broader distribution. Never work around installation issues by disabling SIP or Gatekeeper.
+The script produces an ad-hoc signed local bundle unless `PRESENCE_SIGN_IDENTITY` selects a developer identity. Ad-hoc signing is not notarization or a trust endorsement. Version 0.1.0 is a public experimental preview with this limitation disclosed on the download page and in the archive. Developer ID signing, notarization, a wider support matrix, and longer field testing remain release work. Never work around installation issues by disabling SIP or Gatekeeper. Checksums detect mismatched downloads; they do not replace a trusted developer signature.
 
 ## Reporting a vulnerability
 
-Use GitHub's private **Report a vulnerability** option if enabled. Otherwise, open a minimal issue asking for a private reporting channel without exploit details or personal device information. Do not paste credentials, UUIDs, raw advertisements, or private Shortcut contents into public issues. Supported versions: this initial developer branch only; no security response SLA is promised.
+Use GitHub's private **Report a vulnerability** option if enabled. Otherwise, open a minimal issue asking for a private reporting channel without exploit details or personal device information. Do not paste credentials, UUIDs, raw advertisements, or private Shortcut contents into public issues. Security fixes target the latest preview and main branch; no security response SLA is promised.
 
 The opt-in command-line Bluetooth diagnostic prints nearby device names and signal values locally. No diagnostic is uploaded automatically. Keep this output out of public issues or redact identifying names before sharing.
