@@ -17,6 +17,13 @@
 - Automatic Watch departure test: with the selected Watch near, lock effects enabled, and a calibrated −59 dBm departure threshold, the app was armed for a screen-dark walk into another room. On return, the owner reported that it seemed to be working, and the app showed **Lock requested; use I’m back after unlocking** with a near Watch signal. Record this as an owner-reported successful automatic lock on one setup, not a measured latency/reliability benchmark. No Focus action was enabled.
 - macOS 13 is the deployment target; older OS/device combinations have not yet been field-tested.
 
+## First preview package
+
+- The universal package builds both arm64 and x86_64. Each Mach-O slice declares macOS 13.0 as its minimum OS.
+- Local archive extraction, ad-hoc code signature verification, and the Apple Silicon executable self-check passed. The archive includes only the app, MIT license, installation guide, and source-revision build information; device settings and diagnostic output are excluded.
+- SHA-256 verification passes for the ZIP, installation guide, and build information. CI builds the same package recipe and retains the result for release publication after a successful main-branch run.
+- Intel compilation is checked, but physical Watch/Focus behavior on Intel and older macOS versions remains untested. No Developer ID certificate or notarization is included in v0.1.0.
+
 ## Automated coverage
 
 The test suite covers departure grace, cancellation by input, unavailable-radio fallback, a phone left near the Mac, invalid input data, sleep/reset, RSSI smoothing/staleness, serialized Focus actions, renewal cadence, manual overrides, ambiguous outcomes, and cleanup backoff. Added coverage checks the near-before-arm gate, invalid signal rejection, repeated radio-loss notifications, stale data after radio recovery, the faster departure timing, and return during the grace period.
