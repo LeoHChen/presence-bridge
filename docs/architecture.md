@@ -15,7 +15,7 @@ The first release proves a local Mac presence-to-action loop. It exposes uncerta
 | `BluetoothMonitor` | Opt-in discovery, selected-device connection, two-second RSSI polling, timeout/reconnect, and passive fallback on the main queue |
 | `ScreenLocker` | Request Apple's Control-Command-Q shortcut using public Core Graphics APIs |
 | `ShortcutRunner` | Run fixed shortcut names without a shell; validate output receipts; enforce a local process timeout |
-| SwiftUI menu bar | Status, effect toggles, device selection, pause, manual return, login item controls |
+| SwiftUI control panel / menu bar | Status, named-device selection, session activity, pause/manual return, reliable window restore, and login item controls |
 
 ## Presence policy
 
@@ -34,7 +34,7 @@ Bluetooth is a hint that can accelerate departure, never an authentication facto
 
 The app deliberately distinguishes its presence estimate from permission to run effects. It launches with effects disarmed and scanning off. **Start work** arms the current session; effect toggles are separate. Screen sleep, system sleep, session switching, and detected departure hold effects pending return. **Resume after unlocking** defaults on, but can resume only an already-armed session. Pause and restart cannot rearm themselves.
 
-Public workspace notifications cover screen and session lifecycle events, but are not a universal authenticated screen-lock/unlock API. The unreleased return adapter adds the undocumented `CGSSessionScreenIsLocked` field from the public `CGSessionCopyCurrentDictionary` query. Initial field absence means unknown; absence can indicate unlocked only after the tracker has seen a locked value. The pure return policy requires a locked observation within each waiting cycle, an unlocked state, available desktop, fresh device readiness, and two seconds of stable readiness. It resets when paused and after each successful return. No private notifications or security-process inspection are used. See [automatic return](automatic-return.md) for the compatibility limitations and required hardware checks.
+Public workspace notifications cover screen and session lifecycle events, but are not a universal authenticated screen-lock/unlock API. The v0.2 return adapter reads the undocumented `CGSSessionScreenIsLocked` field from the public `CGSessionCopyCurrentDictionary` query. Initial field absence means unknown; absence can indicate unlocked only after the tracker has seen a locked value. The pure return policy requires a locked observation within each waiting cycle, an unlocked state, available desktop, fresh device readiness, and two seconds of stable readiness. It resets when paused and after each successful return. No private notifications or security-process inspection are used. See [automatic return](automatic-return.md) for the compatibility limitations and required hardware checks.
 
 Automatic return clears the lock latch and resets the departure countdown. It resumes the same Focus work session without resetting manual-override suppression. **I’m back** remains a manual fallback for a missed or unsupported lock cycle, including sleep without a detected lock.
 
@@ -53,16 +53,18 @@ Ownership is advisory. There is no atomic Focus compare-and-set or public token 
 
 ## Persistence and transport
 
-Only idle timeout and selected peripheral UUID persist in app preferences. Advertised names/RSSI and state are memory-only. There is no event history or app telemetry. Shortcuts output uses a private temporary directory that is removed after execution; a crash can leave a small receipt file until system cleanup. The app has no network client or listener; shared Focus travels through Apple's services outside the app.
+Only the idle timeout and the selected peripheral's local UUID and sanitized friendly name persist in app preferences. The name lets the panel explain what is selected before discovery completes; it is not authenticated identity. Other advertised names, RSSI, calibration, effect toggles, and presence state are memory-only.
+
+The control panel keeps a bounded 75-entry activity history in memory for the current process. Exact consecutive duplicates are coalesced. Messages describe state transitions and lock requests without UUIDs, neighboring device names, or raw RSSI, and the user can clear them at any time. There is no app telemetry. Shortcuts output uses a private temporary directory that is removed after execution; a crash can leave a small receipt file until system cleanup. The app has no network client or listener; shared Focus travels through Apple's services outside the app.
 
 ## Delivery
 
-Swift Package Manager keeps the initial project small and dependency-free. A script assembles an `LSUIElement` application bundle with Bluetooth usage text and ad-hoc signing. `SMAppService.mainApp` supplies opt-in login launch; an example LaunchAgent is provided for development. Signing/notarization and long-running hardware validation remain release work.
+Swift Package Manager keeps the project small and dependency-free. A script assembles an `LSUIElement` application bundle with Bluetooth usage text, the app icon, and either ad-hoc or Developer ID signing. `SMAppService.mainApp` supplies opt-in login launch; an example LaunchAgent is provided for development. Notarization and long-running hardware validation remain release work.
 
 ## Active Bluetooth adapter
 
 Retain the selected CBPeripheral, call connect, and read RSSI at most every two seconds while connected. Connection attempts time out after 15 seconds and back off for five seconds. An RSSI response missing for six seconds triggers reconnection. Disconnection does not reset signal freshness, so reconnect attempts cannot indefinitely prevent departure. Advertisements supply fallback measurements when connected RSSI is unavailable. The adapter reads no services/characteristics from the selected device. Public standard-service retrieval only helps discover devices already connected by the system. No connections are made to other discovered devices.
 
-Calibration chooses a leave threshold 15 dB below the current desk signal, bounded to −100…−45 dBm, with an 8 dB hysteresis band. It resets the samples and requires fresh calibration evidence before arming. Calibration is session-only. Device names are not authenticated. The bounded discovery list prioritizes named devices over rotating anonymous advertisements.
+Calibration chooses a leave threshold 15 dB below the current desk signal, bounded to −100…−45 dBm, with an 8 dB hysteresis band. It resets the samples and requires fresh calibration evidence before arming. Calibration is session-only. Device names are not authenticated. The picker accepts only nonempty, non-placeholder, non-identifier-like advertised names, expires stale unselected discoveries, keeps the saved selection visible while unavailable, and sorts it first when rediscovered.
 
 The explicit diagnostic command prints local names/RSSI to its invoking terminal. It does not store a log itself or run effects. Its output should not be committed or shared without redaction.

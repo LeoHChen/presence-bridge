@@ -20,7 +20,7 @@ The app opens a control panel and also appears in the menu bar. It starts with l
 
 1. Keep the phone or watch next to the Mac. Unlock/wake it during initial discovery.
 2. Enable **Use iPhone / Watch proximity** and approve the system Bluetooth prompt if asked.
-3. Select your device from the picker. Leave **Maintain an active Bluetooth connection** on.
+3. Select your device from the picker. It shows only useful advertised names and remembers your choice on this Mac. A restored choice stays visible as waiting until rediscovered. Leave **Maintain an active Bluetooth connection** on.
 4. Watch the connection status and sample counter. A healthy active path reports **Connected; signal … dBm** repeatedly. If a connection cannot be established, advertisements remain a fallback and the status says so.
 5. Lock the phone or let the Watch screen turn off. Check that valid samples continue for several minutes while it remains near the Mac.
 
@@ -30,7 +30,7 @@ Only the selected device receives a connection attempt. The app does not enumera
 
 1. Place/wear the device as you normally do at the desk.
 2. After at least three valid samples, click **Calibrate at desk**.
-3. Wait for three fresh near observations, then click **Test walking away**.
+3. Wait for three fresh near observations, then click **Test detection only**.
 4. Stop touching the Mac and take the selected device away. Ask someone to observe the panel if needed. The panel should change through **leaving** to **away**, with **Walk-away detected. No lock was sent.**
 5. Return and check that the signal returns to **near/present**. Repeat with the phone locked or Watch screen off.
 
@@ -57,6 +57,8 @@ After the walk test succeeds:
 3. Save work and test **Lock now**. Confirm the actual password-protected lock screen appears.
 4. Return, wait for a fresh near signal, and click **Start work** / **I’m back**.
 5. Walk away with the selected device. Verify that the Mac really locks.
+
+Check **Recent activity** for the device departure, grace period, lock request, and observed lock. After unlocking normally, it also records the unlock and automatic resume. The history is session-only and can be cleared from the panel.
 
 The app requests Control-Command-Q; successful event posting is not confirmed locking. It never unlocks the Mac. Apple Watch Auto Unlock may handle authentication independently when you return.
 

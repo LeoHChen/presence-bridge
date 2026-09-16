@@ -15,6 +15,7 @@ final class AppModel: NSObject, ObservableObject {
     @Published private(set) var focusStatus = "Focus bridge is off"
     @Published private(set) var quitting = false
     @Published private(set) var walkTestRunning = false
+    @Published private(set) var activityEntries: [ActivityEntry] = []
     @Published var resumeAfterUnlock = true
     @Published var lockEnabled = false {
         didSet {
@@ -30,6 +31,7 @@ final class AppModel: NSObject, ObservableObject {
     }
     @Published private(set) var bluetoothEnabled = false
     @Published private(set) var selectedDevice: UUID?
+    @Published private(set) var selectedDeviceName: String?
     @Published private(set) var activeBluetooth = true
     let bluetooth = BluetoothMonitor()
     private var engine = PresenceEngine()
@@ -41,13 +43,21 @@ final class AppModel: NSObject, ObservableObject {
     private var lockedThisSession = false
     private var screenLockMonitor = ScreenLockMonitor()
     private var screenLockState: ScreenLockState = .unknown
+    private var previousScreenLockState: ScreenLockState = .unknown
+    private var previousPresenceState: PresenceState = .unknown
     private var autoResume = AutoResumePolicy()
+    private var activityHistory = ActivityHistory()
     private var forwarding: AnyCancellable?
 
     override init() {
         let savedTimeout = UserDefaults.standard.double(forKey: "idleTimeout")
         idleTimeout = savedTimeout >= 60 && savedTimeout <= 1800 ? savedTimeout : 300
-        selectedDevice = UserDefaults.standard.string(forKey: "selectedDevice").flatMap(UUID.init(uuidString:))
+        let savedSelection = StoredDeviceSelection.restore(
+            identifier: UserDefaults.standard.string(forKey: "selectedDevice"),
+            name: UserDefaults.standard.string(forKey: "selectedDeviceName")
+        )
+        selectedDevice = savedSelection?.identifier
+        selectedDeviceName = savedSelection?.name
         super.init()
         forwarding = bluetooth.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         let center = NSWorkspace.shared.notificationCenter
@@ -62,7 +72,16 @@ final class AppModel: NSObject, ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
+        record(.session, "App started in observation mode")
         tick()
+    }
+
+    var selectedDeviceAvailable: Bool { bluetooth.selectedDeviceAvailable }
+
+    var menuBarSystemImage: String {
+        if needsReturnConfirmation { return "lock.clock" }
+        if armed { return "lock.circle.fill" }
+        return "lock.circle"
     }
 
     func setBluetooth(_ enabled: Bool) {
@@ -70,13 +89,23 @@ final class AppModel: NSObject, ObservableObject {
         bluetoothEnabled = enabled
         if enabled { bluetooth.start(selected: selectedDevice) } else { bluetooth.stop() }
         engine.reset()
+        record(.bluetooth, enabled ? "Bluetooth observation enabled" : "Bluetooth observation disabled")
     }
 
-    func selectDevice(_ identifier: UUID?) {
+    func selectDevice(_ device: BluetoothMonitor.Device?) {
         if armed || walkTestRunning { pause() }
-        selectedDevice = identifier
-        UserDefaults.standard.set(identifier?.uuidString, forKey: "selectedDevice")
-        bluetooth.select(identifier)
+        selectedDevice = device?.id
+        selectedDeviceName = device?.name
+        if let device {
+            UserDefaults.standard.set(device.id.uuidString, forKey: "selectedDevice")
+            UserDefaults.standard.set(device.name, forKey: "selectedDeviceName")
+            record(.bluetooth, "Selected \(device.name) for proximity")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "selectedDevice")
+            UserDefaults.standard.removeObject(forKey: "selectedDeviceName")
+            record(.bluetooth, "Cleared the selected proximity device")
+        }
+        bluetooth.select(device?.id)
         engine.reset()
     }
 
@@ -85,6 +114,7 @@ final class AppModel: NSObject, ObservableObject {
         activeBluetooth = active
         bluetooth.setActiveConnection(active)
         engine.reset()
+        record(.bluetooth, active ? "Active Bluetooth connection enabled" : "Using passive Bluetooth advertisements")
     }
 
     func calibrateAtDesk() {
@@ -92,6 +122,7 @@ final class AppModel: NSObject, ObservableObject {
         effectStatus = bluetooth.calibrateAtDesk()
             ? "Desk signal saved. Wait for fresh samples, then test walking away."
             : "Keep the device near the Mac until at least three valid samples arrive."
+        record(.bluetooth, effectStatus)
         engine.reset()
     }
 
@@ -110,6 +141,7 @@ final class AppModel: NSObject, ObservableObject {
         engine.reset()
         walkTestRunning = true
         effectStatus = "Walk test: take the selected device away. Locking and Focus stay off."
+        record(.session, "Detection-only walk test started")
         tick()
     }
 
@@ -134,29 +166,40 @@ final class AppModel: NSObject, ObservableObject {
         engine.reset()
         focus.beginWorkSession()
         effectStatus = "Work session started"
+        record(.session, "Work session armed")
         tick()
     }
 
     func pause() {
+        let wasActive = armed || walkTestRunning
         armed = false
         autoResume.reset()
         walkTestRunning = false
         needsReturnConfirmation = false
         effectStatus = "Paused; cleaning up any Focus lease"
+        if wasActive { record(.session, "Work session paused") }
         tick()
     }
 
-    func requestLock() {
+    func requestLock(reason: String = "Manual lock") {
         // Latch before posting key events: our own injected events must never imply a return.
         autoResume.reset()
         needsReturnConfirmation = true
         lockedThisSession = true
-        effectStatus = ScreenLocker.requestLock()
+        let requested = ScreenLocker.requestLock()
+        effectStatus = requested
             ? (armed && resumeAfterUnlock
                 ? "Lock requested; waiting for unlock and a ready presence signal"
                 : "Lock requested; use I’m back after unlocking")
             : "Lock failed: grant Accessibility permission, then retry"
+        record(requested ? .lock : .error,
+               requested ? "\(reason); lock requested" : "\(reason); lock request failed")
         tick()
+    }
+
+    func clearActivityHistory() {
+        activityHistory.clear()
+        activityEntries = []
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -188,10 +231,19 @@ final class AppModel: NSObject, ObservableObject {
             eventType: CGEventType(rawValue: UInt32.max)!)
         idleSeconds = idle.isFinite && idle >= 0 ? idle : 0
         proximity = bluetooth.proximity(at: now)
+        synchronizeSelectedDeviceName()
         let session = CGSessionCopyCurrentDictionary() as? [String: Any]
         let onConsole = session?[kCGSessionOnConsoleKey as String] as? Bool ?? false
         let loggedIn = session?[kCGSessionLoginDoneKey as String] as? Bool ?? false
         screenLockState = screenLockMonitor.read(session: session, sessionAvailable: onConsole && loggedIn)
+        if screenLockState != previousScreenLockState {
+            if screenLockState == .locked {
+                record(.lock, "Mac lock observed")
+            } else if screenLockState == .unlocked, previousScreenLockState == .locked {
+                record(.returnState, "Mac unlocked; checking presence before resuming")
+            }
+            previousScreenLockState = screenLockState
+        }
         if screenLockState == .locked, armed {
             needsReturnConfirmation = true
             lockedThisSession = true
@@ -206,6 +258,7 @@ final class AppModel: NSObject, ObservableObject {
             engine.reset()
             // Preserve manual Focus overrides; this resumes the existing work session.
             effectStatus = "Work resumed automatically after unlock"
+            record(.returnState, effectStatus)
         }
         engine.policy = PresencePolicy(idleTimeout: idleTimeout,
             departureGrace: bluetoothEnabled ? 8 : 15,
@@ -213,6 +266,10 @@ final class AppModel: NSObject, ObservableObject {
             useBluetooth: bluetoothEnabled)
         state = engine.update(.init(time: now, idleSeconds: idle,
             proximity: proximity, sessionAvailable: desktopAvailable && screenLockState != .locked))
+        if state != previousPresenceState {
+            recordPresenceTransition(from: previousPresenceState, to: state)
+            previousPresenceState = state
+        }
 
         if walkTestRunning {
             if state == .away { effectStatus = "Walk-away detected. No lock was sent. Return and check the near signal." }
@@ -222,7 +279,13 @@ final class AppModel: NSObject, ObservableObject {
 
         if armed, state == .away, !needsReturnConfirmation {
             needsReturnConfirmation = true
-            if lockEnabled && !lockedThisSession { requestLock(); return }
+            if lockEnabled && !lockedThisSession {
+                let reason = bluetoothEnabled && proximity == .far
+                    ? "\(selectedDeviceName ?? "Selected device") moved out of proximity"
+                    : "Away state confirmed"
+                requestLock(reason: reason)
+                return
+            }
             effectStatus = "Away; use I’m back to resume effects"
         }
         let wantsFocus = armed && focusEnabled && !needsReturnConfirmation
@@ -241,6 +304,39 @@ final class AppModel: NSObject, ObservableObject {
             // Reconcile current intent after completion, including pause/away while ON was in flight.
             tick()
         }
+    }
+
+    private func synchronizeSelectedDeviceName() {
+        guard let live = bluetooth.selectedDevice, live.id == selectedDevice,
+              live.name != selectedDeviceName else { return }
+        selectedDeviceName = live.name
+        UserDefaults.standard.set(live.name, forKey: "selectedDeviceName")
+    }
+
+    private func recordPresenceTransition(from oldState: PresenceState, to newState: PresenceState) {
+        switch newState {
+        case .leaving:
+            if bluetoothEnabled && proximity == .far {
+                record(.bluetooth, "\(selectedDeviceName ?? "Selected device") moved out of proximity; departure grace started")
+            } else {
+                record(.session, "Idle departure grace started")
+            }
+        case .away:
+            if bluetoothEnabled && proximity == .far {
+                record(.bluetooth, "\(selectedDeviceName ?? "Selected device") remained away; departure confirmed")
+            } else {
+                record(.session, "Away state confirmed")
+            }
+        case .present where oldState == .leaving:
+            record(.returnState, "Presence returned; departure cancelled")
+        default:
+            break
+        }
+    }
+
+    private func record(_ kind: ActivityKind, _ message: String) {
+        activityHistory.record(kind, message)
+        activityEntries = activityHistory.entries
     }
 
     func quit() {
