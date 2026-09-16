@@ -4,9 +4,13 @@
 
 A native macOS menu bar app that locks your Mac when your selected Apple Watch or iPhone moves away, using ordinary Bluetooth signal strength. Optional Apple Shortcuts integration manages a shared **At Mac** Focus.
 
-**v0.1.0 preview:** the owner reported successful Apple Watch walk-away locking on one Apple Silicon Mac running macOS 27. Device compatibility and radio reliability vary; calibrate and test your own setup. macOS 13+ build target, Swift/SwiftUI, no third-party dependencies, MIT licensed. Each launch starts in observation mode with Bluetooth and automatic actions off.
+<img src="Resources/AppIcon-1024.png" width="128" alt="Presence Bridge lock and proximity app icon">
+
+**v0.2.0 in development:** the owner reported successful Apple Watch walk-away locking and automatic return after normal unlock on one Apple Silicon Mac running macOS 27. The updated panel filters unnamed Bluetooth advertisements, remembers and displays the chosen device, shows an in-memory activity history, and can always be reopened from its menu-bar lock icon. Device compatibility and radio reliability vary; calibrate and test your own setup. macOS 13+ build target, Swift/SwiftUI, no third-party dependencies, MIT licensed. Each launch starts in observation mode with Bluetooth and automatic actions off.
 
 ## Download and install
+
+The published **v0.1.0** below predates automatic return and the v0.2.0 daily-use interface; see [automatic return](docs/automatic-return.md) for the current behavior and validation status.
 
 **[Download Presence Bridge 0.1.0 for Mac](https://github.com/LeoHChen/presence-bridge/releases/download/v0.1.0/PresenceBridge-0.1.0-macos-universal.zip)** · **[Release notes and checksums](https://github.com/LeoHChen/presence-bridge/releases/tag/v0.1.0)**
 
@@ -30,20 +34,24 @@ The universal ZIP includes Apple Silicon and Intel code, the app, installation i
 | Automatically lock the Mac | Owner-reported successful walk-away test; Lock now also verified. Requires control permission, calibration, and explicit arming |
 | Automatically change iPhone Focus | User-created Mac shortcuts change a **shared** Focus; end-to-end testing remains pending |
 | Silence only the iPhone, keep all Mac notifications | **Not implemented:** shared Focus also affects the Mac; disabling Focus sharing prevents this bridge reaching the iPhone |
-| Return after locking/sleep | Unlock normally, then click **I’m back**; unattended return detection is deferred |
+| Return after locking | An already-active session resumes after an observed lock/unlock cycle, a usable desktop, and stable near presence; **I’m back** remains the fallback |
+| Device picker and history | Shows only useful advertised names, restores the selected device name after restart, and keeps a clearable session-only activity list |
+| Menu bar | The lock icon shows status and restores a closed or minimized control panel |
 | Apple Watch Auto Unlock | Continues to be an independent Apple feature; this app never unlocks the Mac |
 
 The original goal is fewer duplicate phone notifications while working on a Mac. The shared-Focus path is a practical starting point, **not a complete solution to phone-only notification suppression**. Focus is a coarse notification policy; this project cannot detect that the Mac already delivered an individual notification.
 
 ## Set up walk-away locking
 
-Turn on **Use iPhone / Watch proximity**, select your own device, and leave **Maintain an active Bluetooth connection** enabled. The app connects only to that selection and reads RSSI every two seconds. It retries failed connections and uses advertisements when a connection is unavailable. It does not read private Bluetooth databases or Apple's Auto Unlock state.
+Turn on **Use iPhone / Watch proximity**, select your own named device, and leave **Maintain an active Bluetooth connection** enabled. The picker excludes blank, placeholder, UUID-like, and address-like names; it remembers the local identifier and friendly name of your choice. The app connects only to that selection and reads RSSI every two seconds. It retries failed connections and uses advertisements when a connection is unavailable. It does not read private Bluetooth databases or Apple's Auto Unlock state.
 
 1. Sit normally at the desk, wait for **near**, and click **Calibrate at desk**. Wait for at least three fresh samples.
-2. Click **Test walking away**. Let your Watch screen go dark and walk into another room for 30–40 seconds without touching the Mac, then return. Confirm departure was detected and the device is near again. This test sends no lock or Focus actions.
+2. Click **Test detection only**. Let your Watch screen go dark and walk into another room for 30–40 seconds without touching the Mac, then return. Confirm departure was detected and the device is near again. This test sends no lock or Focus actions.
 3. Enable **Lock automatically when away**, grant Accessibility to the exact app, and test **Lock now** after saving work. On the tested macOS 27 system, the permission is under **Privacy & Security → Device Control and Data Access**. Verify that the Mac actually locks.
 4. Unlock normally, wait for **near**, then click **I’m back** / **Start work** and repeat the walk. The app refuses to arm device locking without a fresh near signal.
-5. After locking, screen sleep, or session switching, unlock if necessary and click **I’m back** to rearm. **Pause** stops automatic effects. Calibration and effect toggles reset each launch, including launches at login.
+5. After Presence Bridge locks the Mac, unlock normally. With **Resume after unlocking** enabled, the active session resumes after the desktop is available and the device stays near for two seconds. Use **I’m back** if the OS lock signal is unavailable. **Pause** stops automatic effects. Calibration and effect toggles reset each launch, including launches at login.
+
+The **Recent activity** section records the departure grace, lock request, observed lock, normal unlock, and automatic resume. It holds up to 75 entries in memory, coalesces repeated identical messages, and clears on quit. It never includes peripheral UUIDs or raw RSSI.
 
 Signal strength is not distance. A typical complete signal loss reaches an away decision about 16–17 seconds after the last valid reading; weak-signal departure also depends on smoothing and the chosen threshold. New input cancels departure. If the Mac's radio becomes unavailable after a near device was established, prolonged radio loss is treated as departure too. A phone left on the desk still cannot defeat the idle timeout.
 

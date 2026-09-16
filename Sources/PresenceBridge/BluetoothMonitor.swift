@@ -36,6 +36,10 @@ final class BluetoothMonitor: NSObject, ObservableObject, CBCentralManagerDelega
     var smoothedRSSI: Double? { signal.smoothedRSSI }
     var readyToArm: Bool { signal.readyToArm(at: now) }
     var currentFarThreshold: Double { farThreshold }
+    var selectedDevice: Device? { devices.first { $0.id == selected } }
+    var selectedDeviceAvailable: Bool {
+        selectedDevice.map { now - $0.lastSeen <= 10 } ?? false
+    }
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     func start(selected: UUID?) {
@@ -59,6 +63,7 @@ final class BluetoothMonitor: NSObject, ObservableObject, CBCentralManagerDelega
         resetSignal()
         nextAttempt = 0
         recoverSelectedPeripheral()
+        sortDevices()
         poll()
     }
 
@@ -194,18 +199,23 @@ final class BluetoothMonitor: NSObject, ObservableObject, CBCentralManagerDelega
     }
 
     private func remember(_ peripheral: CBPeripheral, name: String?, rssi: Int, connectable: Bool) {
-        let clean = String((name ?? "Unnamed device").unicodeScalars
-            .filter { !CharacterSet.controlCharacters.contains($0) }.map(String.init).joined().prefix(60))
         devices.removeAll { $0.id != selected && now - $0.lastSeen > 45 }
         let retained = Set(devices.map(\.id)).union(selected.map { [$0] } ?? [])
         peripherals = peripherals.filter { retained.contains($0.key) }
+        if peripheral.identifier == selected { peripherals[peripheral.identifier] = peripheral }
+
+        guard let clean = BluetoothDeviceCatalog.meaningfulName(name) else {
+            // Unnamed advertisements are intentionally absent from the picker. Keep only the
+            // selected peripheral so a selection restored from preferences can still reconnect.
+            devices.removeAll { $0.id == peripheral.identifier && peripheral.identifier != selected }
+            return
+        }
         let device = Device(id: peripheral.identifier, name: clean, rssi: rssi, lastSeen: now, connectable: connectable)
         if let index = devices.firstIndex(where: { $0.id == device.id }) { devices[index] = device }
         else if devices.count < 50 { devices.append(device) }
         else {
-            // Rotating unnamed advertisements must not crowd a named phone/watch out of the picker.
             func priority(_ item: Device) -> Int {
-                (item.name == "Unnamed device" ? 0 : 1000) + (item.rssi == 127 ? -127 : item.rssi)
+                item.rssi == 127 ? -127 : item.rssi
             }
             if let weakest = devices.indices.filter({ devices[$0].id != selected })
                 .min(by: { priority(devices[$0]) < priority(devices[$1]) }),
@@ -215,6 +225,17 @@ final class BluetoothMonitor: NSObject, ObservableObject, CBCentralManagerDelega
             }
         }
         if devices.contains(where: { $0.id == device.id }) { peripherals[device.id] = peripheral }
+        sortDevices()
+    }
+
+    private func sortDevices() {
+        let order = BluetoothDeviceCatalog.sorted(devices.map {
+            BluetoothDeviceCandidate(identifier: $0.id, name: $0.name, rssi: $0.rssi,
+                                     lastSeen: $0.lastSeen, isSelected: $0.id == selected)
+        }).map(\.identifier)
+        devices.sort { lhs, rhs in
+            (order.firstIndex(of: lhs.id) ?? order.count) < (order.firstIndex(of: rhs.id) ?? order.count)
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
@@ -272,5 +293,10 @@ final class BluetoothMonitor: NSObject, ObservableObject, CBCentralManagerDelega
         signal.observe(rssi: value, at: now)
         sampleCount = signal.sampleCount
         lastRSSI = signal.lastRSSI
+        if let selected, let index = devices.firstIndex(where: { $0.id == selected }) {
+            devices[index].rssi = value
+            devices[index].lastSeen = now
+            sortDevices()
+        }
     }
 }
