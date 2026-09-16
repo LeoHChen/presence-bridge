@@ -8,7 +8,7 @@ Version 0.2.0 is currently a local release candidate with automatic return after
 
 - macOS 13 or later. The ZIP contains both Apple Silicon and Intel code.
 - This is an experimental preview. The physical Watch walk-away test passed on one Apple Silicon Mac running macOS 27. Other Mac/device combinations need their own calibration and walk test; Intel hardware has not been field-tested.
-- This download is ad-hoc signed, without an Apple Developer ID certificate or notarization. macOS may block its first launch. Review the source and release before deciding to run it.
+- The published v0.1.0 download is ad-hoc signed. Local v0.2.0 release candidates are Developer ID signed when their build information names `Developer ID Application: Hao Chen (79DDZ6D8WT)`, but are not yet notarized. macOS may block an unnotarized first launch. Review the matching source, build information, and checksums before deciding to run it.
 - There is no installer, privileged helper, backend, or automatic updater. All actions start disabled on each launch.
 
 ## Download and open
