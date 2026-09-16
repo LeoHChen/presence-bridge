@@ -17,7 +17,7 @@ The published **v0.1.0** below predates automatic return and the v0.2.0 daily-us
 The universal ZIP includes Apple Silicon and Intel code, the app, installation instructions, MIT license, and build information. No Xcode or Swift installation is needed to use the download. Intel hardware and older macOS versions have not been field-tested.
 
 1. Expand the ZIP and drag **Presence Bridge.app** to **Applications** before granting permissions.
-2. Open that copy. **This preview is ad-hoc signed and not notarized.** If macOS blocks it and you choose to trust this release, follow Apple's per-app [Open Anyway instructions](https://support.apple.com/en-us/102445). Keep Gatekeeper and SIP enabled.
+2. Open that copy. The published v0.1.0 preview is ad-hoc signed and not notarized. Local v0.2.0 candidates can be Developer ID signed but still require notarization before public distribution. If macOS blocks a build and you choose to trust it, follow Apple's per-app [Open Anyway instructions](https://support.apple.com/en-us/102445). Keep Gatekeeper and SIP enabled.
 3. Follow the walk-away setup below. If an enabled permission entry still fails, use the [permission recovery steps](docs/proximity-setup.md#permission-appears-enabled-but-locking-fails).
 
 **[Complete installation, verification, and removal guide](docs/install.md).** This is convenience automation; keep macOS's own lock and password settings configured.

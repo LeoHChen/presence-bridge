@@ -16,7 +16,7 @@ Download the public release assets into a new directory after publishing. Verify
 
 ## Signing
 
-The default package is ad-hoc signed. It is **not** Developer ID signed or notarized. The first preview explicitly documents this limitation and Apple's per-app approval flow. Do not publish it as an Apple-verified release.
+The default package is ad-hoc signed. The published v0.1.0 preview explicitly documents this limitation and Apple's per-app approval flow. A local v0.2.0 candidate has been built with the project's Developer ID identity, but that alone does not make it notarized or ready to publish as an Apple-verified release.
 
 `PRESENCE_SIGN_IDENTITY` can select an existing developer certificate for the build script; never commit certificates or passwords. A later notarized release also needs secure notarization credentials, submission, ticket stapling, and Gatekeeper validation before replacing this preview workflow. No certificate or credential is created by these scripts.
 
